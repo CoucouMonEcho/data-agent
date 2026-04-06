@@ -31,6 +31,7 @@
 ### 6. 启动Docker容器
 
 - wsl --install (Windows OS)
+- $env:DOCKER_BUILDKIT=0 (Windows OS) | export DOCKER_BUILDKIT=0 (Linux | MacOS)
 - cd docker
 - docker compose up -d
 - docker compose down

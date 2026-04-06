@@ -8,10 +8,10 @@ from app.conf.app_config import ESConfig, app_config
 class ESClientManager:
     def __init__(self, config: ESConfig):
         self.client: AsyncElasticsearch | None = None
-        self.config: ESConfig = config
+        self._config: ESConfig = config
 
     def _get_url(self):
-        return f"http://{self.config.host}:{self.config.port}"
+        return f"http://{self._config.host}:{self._config.port}"
 
     def init(self):
         self.client = AsyncElasticsearch(hosts=[self._get_url()])

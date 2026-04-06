@@ -9,10 +9,10 @@ from qdrant_client.models import Distance, VectorParams
 class QdrantClientManager:
     def __init__(self, config: QdrantConfig):
         self.client: AsyncQdrantClient | None = None
-        self.config: QdrantConfig = config
+        self._config: QdrantConfig = config
 
     def _get_url(self):
-        return f"http://{self.config.host}:{self.config.port}"
+        return f"http://{self._config.host}:{self._config.port}"
 
     def init(self):
         self.client = AsyncQdrantClient(url=self._get_url())
