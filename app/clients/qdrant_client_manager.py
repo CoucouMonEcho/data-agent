@@ -27,20 +27,22 @@ qdrant_client_manager = QdrantClientManager(app_config.qdrant)
 if __name__ == '__main__':
     qdrant_client_manager.init()
     client = qdrant_client_manager.client
+    collection_name = "test_collection_async"
 
 
     async def test():
         # 创建集合
-        await client.create_collection(
-            collection_name="test_collection_async",
-            vectors_config=VectorParams(size=4, distance=Distance.COSINE),
-        )
+        if not await client.collection_exists(collection_name):
+            await client.create_collection(
+                collection_name=collection_name,
+                vectors_config=VectorParams(size=4, distance=Distance.COSINE),
+            )
 
         # 写入数据
         from qdrant_client.models import PointStruct
 
         await client.upsert(
-            collection_name="test_collection_async",
+            collection_name=collection_name,
             wait=True,
             points=[
                 PointStruct(id=1, vector=[0.05, 0.61, 0.76, 0.74], payload={"city": "Berlin"}),
@@ -54,15 +56,14 @@ if __name__ == '__main__':
 
         # 查询数据
         search_result = await client.query_points(
-            collection_name="test_collection_async",
+            collection_name=collection_name,
             query=[0.2, 0.1, 0.9, 0.7],
             with_payload=False,
             limit=3
         )
-        await client.delete_collection(collection_name="test_collection_async")
-        await qdrant_client_manager.close()
-
         print(search_result.points)
+        await client.delete_collection(collection_name=collection_name)
+        await qdrant_client_manager.close()
 
 
     asyncio.run(test())
