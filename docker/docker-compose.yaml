@@ -51,6 +51,7 @@ services:
 
   embedding:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
+#    platform: linux/amd64
     container_name: embedding
     restart: unless-stopped
     ports:

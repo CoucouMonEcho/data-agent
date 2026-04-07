@@ -1,5 +1,7 @@
+from loguru import logger
+
 def main():
-    print("Hello from data-agent!")
+    logger.info('Start...')
 
 
 if __name__ == "__main__":
