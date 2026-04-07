@@ -34,5 +34,5 @@
 - $env:DOCKER_BUILDKIT=0 (Windows OS) | export DOCKER_BUILDKIT=0 (Linux | MacOS)
 - cd docker
 - docker compose up -d
-- docker compose down
+- docker compose down <container> -v
 

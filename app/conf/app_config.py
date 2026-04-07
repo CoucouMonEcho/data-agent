@@ -74,8 +74,8 @@ class AppConfig:
 
 config_file = Path(__file__).parents[2] / 'conf' / 'app_config.yaml'
 schema = OmegaConf.structured(AppConfig)
-config = OmegaConf.load(config_file)
-app_config: AppConfig = OmegaConf.to_object(OmegaConf.merge(schema, config))
+context = OmegaConf.load(config_file)
+app_config: AppConfig = OmegaConf.to_object(OmegaConf.merge(schema, context))
 
 if __name__ == '__main__':
     print(app_config)
