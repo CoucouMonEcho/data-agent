@@ -1,22 +1,31 @@
+import uuid
+from dataclasses import asdict
 from pathlib import Path
 
+from langchain_huggingface import HuggingFaceEndpointEmbeddings
 from omegaconf import OmegaConf
 
 from app.conf.meta_config import MetaConfig
 from app.entities.column_info import ColumnInfo
 from app.entities.table_info import TableInfo
-from app.models.column_info_mysql import ColumnInfoMySQL
-from app.models.table_info_mysql import TableInfoMySQL
 from app.repositories.mysql.dw.dw_mysql_repository import DWMySQLRepository
 from app.repositories.mysql.meta.meta_mysql_repository import MetaMySQLRepository
+from app.repositories.qdrant.column_qdrant_repository import ColumnQdrantRepository
+from app.repositories.qdrant.metric_qdrant_repository import MetricQdrantRepository
 
 
 class MetaKnowledgeService:
     def __init__(self,
                  meta_mysql_repository: MetaMySQLRepository,
-                 dw_mysql_repository: DWMySQLRepository):
+                 dw_mysql_repository: DWMySQLRepository,
+                 column_qdrant_repository: ColumnQdrantRepository,
+                 metric_qdrant_repository: MetricQdrantRepository,
+                 embedding_client: HuggingFaceEndpointEmbeddings):
         self.meta_mysql_repository: MetaMySQLRepository = meta_mysql_repository
         self.dw_mysql_repository: DWMySQLRepository = dw_mysql_repository
+        self.column_qdrant_repository: ColumnQdrantRepository = column_qdrant_repository
+        self.metric_qdrant_repository: MetricQdrantRepository = metric_qdrant_repository
+        self.embedding_client: HuggingFaceEndpointEmbeddings = embedding_client
 
     async def build(self, config_path: Path):
         # 1. 读取配置文件
@@ -59,6 +68,39 @@ class MetaKnowledgeService:
                 self.meta_mysql_repository.save_column_infos(column_infos)
 
             # 2.2 对字段信息建立向量索引
+            await self.column_qdrant_repository.ensure_collection()
+
+            points: list[dict] = []
+            for column_info in column_infos:
+                points.append({
+                    "id": uuid.uuid4(),
+                    "embedding_text": column_info.name,
+                    "payload": asdict(column_info)
+                })
+                points.append({
+                    "id": uuid.uuid4(),
+                    "embedding_text": column_info.description,
+                    "payload": asdict(column_info)
+                })
+                for alias in column_info.alias:
+                    points.append({
+                        "id": uuid.uuid4(),
+                        "embedding_text": alias,
+                        "payload": asdict(column_info)
+                    })
+
+            # 向量化
+            embeddings: list[list[float]] = []
+            embedding_texts = [point["embedding_text"] for point in points]
+            embedding_batch_size = 10
+            for i in range(0, len(embedding_texts), embedding_batch_size):
+                batch_embedding_texts = embedding_texts[i:i + embedding_batch_size]
+                batch_embeddings = self.embedding_client.batch_embeddings(batch_embedding_texts)
+                embeddings.extend(batch_embeddings)
+
+            ids = [point["id"] for point in points]
+            payloads = [point["payload"] for point in points]
+            await self.column_qdrant_repository.upsert(ids, embeddings, payloads, embedding_batch_size)
 
             # 2.3 对指定的维度字段取值建立全文索引
 
