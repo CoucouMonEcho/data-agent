@@ -41,11 +41,15 @@ class ValueESRepository:
                 batch_operations.append(asdict(value_info))
             await self.client.bulk(operations=batch_operations)
 
-# GET value_index/_search
-# {
-#     "query": {
-#         "match": {
-#           "value": "统计华北地区的销售总额"
-#         }
-#     }
-# }
+    async def search(self, keyword: str, score_threshold: float = 0.6, limit: int = 20) -> list[ValueInfo]:
+        resp = await self.client.search(
+            index=self.index_name,
+            query={
+                "match": {
+                    "value": keyword
+                }
+            },
+            size=limit,
+            min_score=score_threshold
+        )
+        return [ValueInfo(**hit['_source']) for hit in resp['hits']['hits']]
