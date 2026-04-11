@@ -5,38 +5,49 @@ from langgraph.runtime import Runtime
 from app.agent.context import DataAgentContext
 from app.agent.llm import llm
 from app.agent.state import DataAgentState
+from app.core.log import logger
 from app.entities.metric_info import MetricInfo
 from app.prompt.prompt_loader import load_prompt
-from app.core.log import logger
+
 
 async def recall_metric(state: DataAgentState, runtime: Runtime[DataAgentContext]):
     writer = runtime.stream_writer
-    writer("召回指标信息")
+    writer({"type": "progress", "step": "召回指标", "status": "running"})
 
     query = state["query"]
     keywords = state["keywords"]
-    embedding_client = runtime.context["embedding_client"]
-    metric_qdrant_repository = runtime.context["metric_qdrant_repository"]
 
-    # 借助LLM扩展关键词
-    prompt = PromptTemplate(template=load_prompt("extend_keywords_for_metric_recall"), input_variables=['query'])
-    output_parser = JsonOutputParser()
-    chain = prompt | llm | output_parser
+    embedding_client = runtime.context['embedding_client']
+    metric_qdrant_repository = runtime.context['metric_qdrant_repository']
 
-    result = await chain.ainvoke({"query": query})
+    try:
+        # 使用LLM扩展关键词
+        prompt = PromptTemplate(template=load_prompt("extend_keywords_for_metric_recall"), input_variables=["query"])
+        output_parser = JsonOutputParser()
 
-    keywords = set(keywords + result)
+        chain = prompt | llm | output_parser
 
-    # 根据关键词检索指标信息
-    metric_info_map: dict[str, MetricInfo] = {}
-    for keyword in keywords:
-        # 对keyword进行Embedding
-        embedding = await embedding_client.aembed_query(keyword)
-        current_metric_infos: list[MetricInfo] = await metric_qdrant_repository.search(embedding)
-        for metric_info in current_metric_infos:
-            if metric_info.id not in metric_info_map:
-                metric_info_map[metric_info.id] = metric_info
-    retrieved_metric_infos: list[MetricInfo] = list(metric_info_map.values())
+        result = await chain.ainvoke({"query": query})
 
-    logger.info(f"检索到指标信息：{list(metric_info_map.keys())}")
-    return {"retrieved_metric_infos": retrieved_metric_infos}
+        # 使用扩展后的关键词召回指标信息
+        retrieved_metrics_map: dict[str, MetricInfo] = {}
+
+        keywords = list(set(keywords + result))
+        logger.info(f"召回指标信息扩展关键词：{keywords}")
+        for keyword in keywords:
+            embedding = await embedding_client.aembed_query(keyword)
+            payloads: list[MetricInfo] = await metric_qdrant_repository.search(embedding)
+            for payload in payloads:
+                metric_id = payload.id
+                if metric_id not in retrieved_metrics_map:
+                    retrieved_metrics_map[metric_id] = payload
+
+        retrieved_metrics = list(retrieved_metrics_map.values())
+
+        writer({"type": "progress", "step": "召回指标", "status": "success"})
+        logger.info(f"召回指标信息：{list(retrieved_metrics_map.keys())}")
+        return {"retrieved_metrics": retrieved_metrics}
+    except Exception as e:
+        writer({"type": "progress", "step": "召回指标", "status": "error"})
+        logger.error(f"召回指标信息失败: {str(e)}")
+        raise

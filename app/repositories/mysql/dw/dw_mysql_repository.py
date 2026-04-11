@@ -33,6 +33,6 @@ class DWMySQLRepository:
         sql = f"explain {sql}"
         await self.session.execute(text(sql))
 
-    async def run(self, sql: str) -> list[dict]:
+    async def execute_sql(self, sql: str) -> list[dict]:
         result = await self.session.execute(text(sql))
         return [dict(row) for row in result.mappings().fetchall()]

@@ -8,10 +8,11 @@ from app.core.log import logger
 
 async def extract_keywords(state: DataAgentState, runtime: Runtime[DataAgentContext]):
     writer = runtime.stream_writer
-    writer("抽取关键词")
+    writer({"type": "progress", "step": "抽取关键字", "status": "running"})
 
     query = state["query"]
 
+    # 对查询进行分词，只提取指定词性的词
     allow_pos = (
         "n",  # 名词: 数据、服务器、表格
         "nr",  # 人名: 张三、李四
@@ -30,5 +31,7 @@ async def extract_keywords(state: DataAgentState, runtime: Runtime[DataAgentCont
     keywords = jieba.analyse.extract_tags(query, allowPOS=allow_pos)
 
     keywords = list(set(keywords + [query]))
-    logger.info(f"抽取关键词: {keywords}")
+
+    writer({"type": "progress", "step": "抽取关键字", "status": "success"})
+    logger.info(f"抽取关键字: {keywords}")
     return {"keywords": keywords}

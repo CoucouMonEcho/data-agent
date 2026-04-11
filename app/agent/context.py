@@ -10,9 +10,9 @@ from app.repositories.qdrant.metric_qdrant_repository import MetricQdrantReposit
 
 
 class DataAgentContext(TypedDict):
-    column_qdrant_repository: ColumnQdrantRepository
     embedding_client: HuggingFaceEndpointEmbeddings
-    metric_qdrant_repository: MetricQdrantRepository
+    column_qdrant_repository: ColumnQdrantRepository
     value_es_repository: ValueESRepository
+    metric_qdrant_repository: MetricQdrantRepository
     meta_mysql_repository: MetaMySQLRepository
     dw_mysql_repository: DWMySQLRepository
